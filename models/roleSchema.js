@@ -1,11 +1,23 @@
 /**
- * 角色
+ * 角色模型
  */
 const mongoose = require("mongoose");
 
 const roleSchema = mongoose.Schema({
-  _id: String,
-  sequence_value: Number,
+  roleName: String,
+  remark: String,
+  permissionList: {
+    checkedKeys: [],
+    halfCheckedKeys: [],
+  },
+  createTime: {
+    type: Date,
+    default: Date.now(),
+  },
+  updateTime: {
+    type: Date,
+    default: Date.now(),
+  },
 });
 
 module.exports = mongoose.model("roles", roleSchema, "roles");
