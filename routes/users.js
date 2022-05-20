@@ -5,7 +5,9 @@ const router = require("koa-router")();
 const utils = require("../utils/utils");
 const jwt = require("jsonwebtoken");
 const User = require("./../models/userSchema");
+const Role = require("./../models/roleSchema");
 const Conuter = require("./../models/counterSchema");
+const Menu = require("./../models/menuSchema");
 const md5 = require("md5");
 
 router.prefix("/users"); //二级路由声明，前缀提出
@@ -27,7 +29,7 @@ router.post("/login", async (ctx) => {
           data, //payload
         },
         "imooc", //密钥
-        { expiresIn: 30 } //30秒过期
+        { expiresIn: 1000 } //30秒过期
       );
       data.token = token;
       //给前面成功数据
@@ -69,12 +71,7 @@ router.post("/delete", async (ctx) => {
   //待删除的用户ID数组
   const { userIds } = ctx.request.body;
   const res = await User.updateMany({ userId: { $in: userIds } }, { state: 2 });
-  if (res.modifiedCount > 0) {
-    ctx.body = utils.success(res, `共删除${res.modifiedCount}条`);
-    return;
-  } else {
-    ctx.body = utils.fail("删除失败");
-  }
+  ctx.body = utils.success(res);
 });
 //用户编辑/新增
 router.post("/operate", async (ctx) => {
@@ -91,7 +88,7 @@ router.post("/operate", async (ctx) => {
   } = ctx.request.body;
   if (action === "add") {
     if (!userName || !userEmail || !deptId) {
-      ctx.body = utils.fail("参数错误", utils.CODE.PARAM_ERROR);
+      ctx.body = utils.fail("参数不完整", utils.CODE.PARAM_ERROR);
       return;
     }
     const res = await User.findOne(
@@ -152,5 +149,36 @@ router.get("/all/list", async (ctx) => {
     ctx.ctx = utils.fail(error.stack);
   }
 });
+//根绝用户获取对应菜单
+router.get("/getPerssionList", async (ctx) => {
+  let authorization = ctx.request.headers.authorization;
+  let { data } = utils.decoded(authorization);
+
+  let menuList = await getMenuList(data.role, data.roleList);
+  ctx.body = utils.success(menuList);
+});
+
+async function getMenuList(userRole, roleKeys) {
+  let rootList = [];
+  //管理员，需要获取全量权限
+  if (userRole === 0) {
+    rootList = (await Menu.find({})) || [];
+  } else {
+    //查找用户对应的角色有哪些
+    let roleList = await Role.find({ _id: { $in: roleKeys } });
+    let permissionList = [];
+    roleList.map((role) => {
+      let { checkedKeys, halfCheckedKeys } = role.permissionList;
+      permissionList = permissionList.concat([
+        ...checkedKeys,
+        ...halfCheckedKeys,
+      ]);
+    });
+    permissionList = [...new Set(permissionList)];
+    rootList = await Menu.find({ _id: { $in: permissionList } });
+  }
+  return utils.getTreeMenu(rootList, null, []);
+}
+
 module.exports = router;
 
