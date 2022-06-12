@@ -25,6 +25,10 @@ const leaveSchema = mongoose.Schema({
       userEmail: String,
     },
   ],
+  applyUser: {
+    userId: String,
+    userName: String,
+  },
   auditLogs: [
     {
       userId: String,
